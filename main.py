@@ -5,7 +5,7 @@ import pandas as pd
 import argparse
 from tqdm import tqdm
 
-from .io import process_input as inp
+from io_process import process_input as inp
 import ga
 
 # ========================== edit here ========================
