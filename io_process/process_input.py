@@ -1,7 +1,19 @@
 from typing import Dict, List
 
 import gspread
+from google.oauth2 import service_account
+import json
 from google.oauth2.service_account import Credentials
+from google_auth_oauthlib.flow import Flow
+
+SCOPES = ['https://accounts.google.com/o/oauth2/token',
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/forms',
+            'https://www.googleapis.com/auth/drive',
+            'https://spreadsheets.google.com/feeds',
+            ]
+SERVICE_ACCOUNT_FILE = '/home/woojin/Desktop/kaori-worker-ca7a53ab02da.json'
+KEY_PATH = '/home/woojin/Desktop/client_secret_626783014254-6a3mkqcflmuf9btuqrkg3qntgqtrop9h.apps.googleusercontent.com.json'
 
 
 def parse_input(filepath: str) -> Dict[str, Dict[str, list]]:
@@ -20,35 +32,18 @@ def parse_input(filepath: str) -> Dict[str, Dict[str, list]]:
                 available[person][day] = slots
     return available
 
-
 # Load the Load the responses from the Google Form
 # FIXME: Current version is just copied from GPT answer
 # FYI:
 # - <http://urin79.com/blog/20667833>
 # - <https://greeksharifa.github.io/references/2023/04/10/gspread-usage/>
 def crawl_responses(form_name: str) -> List[Dict[str, str]]:
-    # TODO: Setup Google API credentials:
-    # 1. Go to the Google Developers Console.
-    # 2. Create a new project or select an existing project.
-    # 3. Enable the "Google Sheets API" for your project.
-    # 4. Create credentials (OAuth client ID) and download the JSON file.
-
-    # Load the credentials from the JSON file
-    # FIXME
-    credentials = Credentials.from_service_account_file(
-        'path/to/credentials.json')
-
-    # Authorize the client
-    client = gspread.authorize(credentials)
-
-    # Open the Google Form responses spreadsheet
-    # FIXME
-    # Replace with the name of your form's responses spreadsheet
-    spreadsheet = client.open('Form Responses')
+    gc = gspread.service_account(filename=SERVICE_ACCOUNT_FILE)
+    sh = gc.open("근로_test(응답)")
 
     # Get the first sheet
     # Assuming the responses are on the first sheet
-    sheet = spreadsheet.get_worksheet(0)
+    sheet = sh.get_worksheet(0)
 
     # Fetch all values
     values = sheet.get_all_values()

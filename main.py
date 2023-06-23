@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import random
 import pandas as pd
@@ -23,7 +23,7 @@ ALPHA = 0.7  # [0, 1] 0에 가까울 수록 분배 우선, 1에 가까울 수록
 # ==============================================================
 
 # glob vars
-SLOT_START_TIMES = [
+SLOT_START_TIMES: List[int] = [
     START_TIME + UNIT*i for i in range(int((END_TIME - START_TIME)/UNIT))
 ]
 
@@ -53,62 +53,65 @@ def get_ideal_ratio(available):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('input', type=str)
-    parser.add_argument('-n', type=int, default=3)
-    parser.add_argument('-o', type=str, default="timetable")
+    inp.crawl_responses("근로_test")
 
-    args = parser.parse_args()
+    if 0:
+        parser = argparse.ArgumentParser(description='Process some integers.')
+        parser.add_argument('input', type=str)
+        parser.add_argument('-n', type=int, default=3)
+        parser.add_argument('-o', type=str, default="timetable")
 
-    slots = {
-        day: {
-            st: []
-            for st in SLOT_START_TIMES
-        } for day in DAYS
-    }
+        args = parser.parse_args()
 
-    available = inp.parse_input(args.input)
-    fill_slots(slots, available)
-    ideal_ratio = get_ideal_ratio(available)
+        slots = {
+            day: {
+                st: []
+                for st in SLOT_START_TIMES
+            } for day in DAYS
+        }
 
-    # initial population
-    populations = [
-        ga.get_random_assignment(slots)
-        for _ in range(NUM_POPULATIONS)
-    ]
+        available = inp.parse_input(args.input)
+        fill_slots(slots, available)
+        ideal_ratio = get_ideal_ratio(available)
 
-    print("Scheduling using GA...")
-    for gen in tqdm(range(NUM_GENERATIONS), colour="blue"):
-        elites = ga.get_best_n(populations, NUM_ELITES,
-                               ideal_ratio, alpha=ALPHA)
-        new_populations = []
-        for i in range(NUM_POPULATIONS - NUM_ELITES):
-            if random.random() < 0.5:
-                new_populations.append(ga.mutate_assignment(
-                    random.choice(elites), slots))
-            else:
-                new_populations.append(ga.crossover_assignments(
-                    *random.choices(elites, k=2)))
-        populations = elites + new_populations
-        assert len(populations) == NUM_POPULATIONS
-    print("Done")
+        # initial population
+        populations = [
+            ga.get_random_assignment(slots)
+            for _ in range(NUM_POPULATIONS)
+        ]
 
-    best_individuals = ga.get_best_n(
-        populations, args.n, ideal_ratio, alpha=ALPHA)
+        print("Scheduling using GA...")
+        for gen in tqdm(range(NUM_GENERATIONS), colour="blue"):
+            elites = ga.get_best_n(populations, NUM_ELITES,
+                                ideal_ratio, alpha=ALPHA)
+            new_populations = []
+            for i in range(NUM_POPULATIONS - NUM_ELITES):
+                if random.random() < 0.5:
+                    new_populations.append(ga.mutate_assignment(
+                        random.choice(elites), slots))
+                else:
+                    new_populations.append(ga.crossover_assignments(
+                        *random.choices(elites, k=2)))
+            populations = elites + new_populations
+            assert len(populations) == NUM_POPULATIONS
+        print("Done")
 
-    for i in range(args.n):
-        assignments = best_individuals[i]
-        rows = []
-        print(f"=================== Option #{i+1} ===================")
-        print()
-        ga.compute_fitness(assignments, ideal_ratio, verbose=True)
-        for day in assignments:
-            for st in assignments[day]:
-                rows.append([day, st, assignments[day][st]])
-        df = pd.DataFrame(data=rows,
-                          columns=["day", "start_time", "assignee"]
-                          ).pivot(index="start_time", columns="day", values="assignee")
-        print()
-        print(df[DAYS].to_markdown())
-        df[DAYS].to_csv(f"{args.o}_{i}.csv")
-        print()
+        best_individuals = ga.get_best_n(
+            populations, args.n, ideal_ratio, alpha=ALPHA)
+
+        for i in range(args.n):
+            assignments = best_individuals[i]
+            rows = []
+            print(f"=================== Option #{i+1} ===================")
+            print()
+            ga.compute_fitness(assignments, ideal_ratio, verbose=True)
+            for day in assignments:
+                for st in assignments[day]:
+                    rows.append([day, st, assignments[day][st]])
+            df = pd.DataFrame(data=rows,
+                            columns=["day", "start_time", "assignee"]
+                            ).pivot(index="start_time", columns="day", values="assignee")
+            print()
+            print(df[DAYS].to_markdown())
+            df[DAYS].to_csv(f"{args.o}_{i}.csv")
+            print()
