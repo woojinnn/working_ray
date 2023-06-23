@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import gspread
 import json
@@ -8,10 +8,11 @@ SCOPES = ['https://accounts.google.com/o/oauth2/token',
           'https://www.googleapis.com/auth/drive',
           'https://spreadsheets.google.com/feeds',
           ]
-SERVICE_ACCOUNT_FILE = '/home/woojin/Desktop/kaori-worker-ca7a53ab02da.json'
+# SERVICE_ACCOUNT_FILE = '/home/woojin/Desktop/kaori-worker-ca7a53ab02da.json'
+SERVICE_ACCOUNT_FILE = '/home/woojin/kaori-worker-a85899e5e9cc.json'
 KEY_PATH = '/home/woojin/Desktop/client_secret_626783014254-6a3mkqcflmuf9btuqrkg3qntgqtrop9h.apps.googleusercontent.com.json'
 
-
+"""
 def parse_input(filepath: str) -> Dict[str, Dict[str, list]]:
     available = {}
     with open(filepath, "r") as f:
@@ -27,6 +28,7 @@ def parse_input(filepath: str) -> Dict[str, Dict[str, list]]:
                          for rg in l.strip().split(":")[1].split(",")]
                 available[person][day] = slots
     return available
+"""
 
 
 def get_worksheets(url_info: str) -> List[gspread.Worksheet]:
@@ -49,19 +51,45 @@ def get_worksheets(url_info: str) -> List[gspread.Worksheet]:
     return worksheet_list
 
 
-def get_responses(worksheet: gspread.Worksheet) -> Dict[str, Dict[str, list]]:
-    col_names = worksheet.row_values(1)
-    name_col_idx = col_names.index("이름")
+def parse_time(time_str: str) -> List[tuple]:
+    return [tuple(map(float, rg.split("-")))
+            for rg in time_str.strip().split(",")]
 
+
+def get_responses(worksheet: gspread.Worksheet) -> Dict[str, Dict[str, list]]:
     values_dicts: List[Dict[str, str]] = worksheet.get_all_records()
 
-    return
+    ans = {}
+    for resp in values_dicts:
+        name = resp["이름"]
+        ans[name] = {}
+        for k, v in resp.items():
+            if not v.strip():
+                continue
+            if "월" in k:
+                ans[name]["월"] = parse_time(v)
+            elif "화" in k:
+                ans[name]["화"] = parse_time(v)
+            elif "수" in k:
+                ans[name]["수"] = parse_time(v)
+            elif "목" in k:
+                ans[name]["목"] = parse_time(v)
+            elif "금" in k:
+                ans[name]["금"] = parse_time(v)
+
+    return ans
+
+
+def parse_input(url: str) -> Dict[str, Dict[str, list]]:
+    worksheet = get_worksheets(url)[0]
+    return get_responses(worksheet)
 
 
 if __name__ == "__main__":
     # test form url: <https://forms.gle/jQJUTPZDhGPKyuz29>
     worksheets = get_worksheets(
-        "https://docs.google.com/spreadsheets/d/1J4XB5QY8QFIkWRAa5fMjgGmZNYB_uxwQQEixpmYgLes/edit?resourcekey#gid=345720317")
+        "https://docs.google.com/spreadsheets/d/1qyeYJX2HHHhvsU9X5uCd1VzGI9Tp801-y3rCzlhk3Ww/edit?resourcekey#gid=1866203138")
     for worksheet in worksheets:
         print(worksheet.title)
-        get_responses(worksheet)
+        resp = get_responses(worksheet)
+        print(resp)
