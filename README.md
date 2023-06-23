@@ -2,7 +2,7 @@
 
 ## Requirements
 ```bash
-pip install pandas tqdm tabulate
+pip install pandas tqdm tabulate gspread google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 ```
 
 ## Input file format
