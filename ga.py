@@ -1,18 +1,25 @@
 import random
 import copy
 
+
 def get_random_assignment(slots):
     assignments = {
         day: {
-            st: None
+            st: [None, None]
             for st in slots[day]
         } for day in slots
     }
     for day in slots:
         for st in slots[day]:
             if slots[day][st]:
-                assignments[day][st] = random.choice(slots[day][st])
+                # sample 2 for 매표소, 수영장
+                if (len(slots[day][st]) < 2):
+                    assignments[day][st] = random.sample(
+                        slots[day][st] + [None], 2)
+                else:
+                    assignments[day][st] = random.sample(slots[day][st], 2)
     return assignments
+
 
 def mutate_assignment(assignments, slots):
     mutant = copy.deepcopy(assignments)
@@ -21,8 +28,13 @@ def mutate_assignment(assignments, slots):
             if slots[day][st]:
                 if random.random() < 0.1:
                     # mutate 10%
-                    mutant[day][st] = random.choice(slots[day][st])
+                    if (len(slots[day][st]) < 2):
+                        assignments[day][st] = random.sample(
+                            slots[day][st] + [None], 2)
+                    else:
+                        assignments[day][st] = random.sample(slots[day][st], 2)
     return mutant
+
 
 def crossover_assignments(assignments1, assignments2):
     mutant = {}
@@ -33,12 +45,14 @@ def crossover_assignments(assignments1, assignments2):
             mutant[day] = copy.deepcopy(assignments2[day])
     return mutant
 
+
 def num_fragments(seq):
     count = 1
     for i in range(1, len(seq)):
         if seq[i] != seq[i-1]:
-            count +=1
+            count += 1
     return count
+
 
 def num_short_or_long_fragments(seq):
     len_fragments = [1]
@@ -50,21 +64,28 @@ def num_short_or_long_fragments(seq):
     # 1시간 혹은 5시간 이상 슬랏에 패널티
     return sum([not (2 <= l <= 4) for l in len_fragments])
 
+
 def compute_fitness(assignments, ideal_ratio, alpha=0.5, verbose=False):
     fragment_fitness = 0
     ratio_fitness = 0
     for day in assignments:
         assignees = [assignments[day][st] for st in assignments[day]]
         fragment_fitness += num_fragments(assignees)/len(assignments[day])
-        fragment_fitness += num_short_or_long_fragments(assignees)/num_fragments(assignees) # penalty
+        # penalty
+        fragment_fitness += num_short_or_long_fragments(
+            assignees)/num_fragments(assignees)
     fragment_fitness /= 2
     fragment_fitness /= len(assignments)
 
     actual_ratio = {person: 0 for person in ideal_ratio}
     for day in assignments:
-        for person in assignments[day].values():
-            if person is not None:
-                actual_ratio[person] += 1
+        for people in assignments[day].values():
+            if people is None:
+                continue
+            if people[0] is not None:
+                actual_ratio[people[0]] += 1
+            if people[1] is not None:
+                actual_ratio[people[1]] += 1
 
     total = sum(actual_ratio.values())
     for person in actual_ratio:
@@ -74,11 +95,13 @@ def compute_fitness(assignments, ideal_ratio, alpha=0.5, verbose=False):
         print(f"name\tideal\tactual")
     for person in actual_ratio:
         ratio_fitness += abs(ideal_ratio[person]
-            - actual_ratio[person])
+                             - actual_ratio[person])
         if verbose:
-            print(f"{person}\t{ideal_ratio[person]:.3f}\t{actual_ratio[person]:.3f}")
+            print(
+                f"{person}\t{ideal_ratio[person]:.3f}\t{actual_ratio[person]:.3f}")
 
     return alpha * fragment_fitness + (1 - alpha) * ratio_fitness
+
 
 def get_best_n(populations, n, ideal_ratio, alpha):
     fitnesses = []
