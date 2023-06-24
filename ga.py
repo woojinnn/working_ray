@@ -13,9 +13,8 @@ def get_random_assignment(slots):
         for st in slots[day]:
             if slots[day][st]:
                 # sample 2 for 매표소, 수영장
-                if (len(slots[day][st]) < 2):
-                    assignments[day][st] = random.sample(
-                        slots[day][st] + [None], 2)
+                if (len(slots[day][st]) == 1):
+                    assignments[day][st][0] = slots[day][st][0]
                 else:
                     assignments[day][st] = random.sample(slots[day][st], 2)
     return assignments
@@ -28,9 +27,8 @@ def mutate_assignment(assignments, slots):
             if slots[day][st]:
                 if random.random() < 0.1:
                     # mutate 10%
-                    if (len(slots[day][st]) < 2):
-                        assignments[day][st] = random.sample(
-                            slots[day][st] + [None], 2)
+                    if (len(slots[day][st]) == 1):
+                        assignments[day][st][0] = slots[day][st][0]
                     else:
                         assignments[day][st] = random.sample(slots[day][st], 2)
     return mutant

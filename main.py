@@ -4,6 +4,7 @@ import random
 import pandas as pd
 import argparse
 from tqdm import tqdm
+from itertools import starmap
 
 from io_process import process_input as inp
 from io_process import process_output as outp
@@ -15,12 +16,13 @@ END_TIME = 21
 # UNIT = 1    # 1 hour
 UNIT = 0.5  # 30 mins
 DAYS = ["월", "화", "수", "목", "금"]
+WORK_TYPE = ["매표소", "수영장"]
 
 # Genetic algorithm hyperparameter
 NUM_POPULATIONS = 50
 NUM_GENERATIONS = 100
 NUM_ELITES = 10
-ALPHA = 0.7  # [0, 1] 0에 가까울 수록 분배 우선, 1에 가까울 수록 연속적 배정 우선
+ALPHA = 0.8  # [0, 1] 0에 가까울 수록 분배 우선, 1에 가까울 수록 연속적 배정 우선
 # ==============================================================
 
 # glob vars
@@ -109,12 +111,17 @@ if __name__ == "__main__":
         ga.compute_fitness(assignments, ideal_ratio, verbose=True)
         for day in assignments:
             for st in assignments[day]:
-                # FIXME
                 rows.append(
-                    [day, st, ':'.join(map(str, [assignments[day][st][0], assignments[day][st][1]]))])
+                    [st, day, "매표소", assignments[day][st][0]])
+                rows.append(
+                    [st, day, "수영장", assignments[day][st][1]])
+        mux = pd.MultiIndex.from_product([DAYS, WORK_TYPE])
         df = pd.DataFrame(data=rows,
-                          columns=["day", "start_time", "매표소:수영장"]
-                          ).pivot(index="start_time", columns="day", values="매표소:수영장").reindex(columns=DAYS)
+                          columns=["start_time", "day", "type", "assignee"])
+        df = df.pivot(index="start_time", columns=[
+                      "day", "type"], values="assignee")
+        df = df.reindex(columns=mux)
+        print(df)
         # result worksheet
         sheet_title = f'근로시간표{i}'
         if sheet_title in [ws.title for ws in sh.worksheets()]:
@@ -127,8 +134,8 @@ if __name__ == "__main__":
                 int((END_TIME - START_TIME)/UNIT))]
         )
         result_ws.update(
-            'B2:F200',
-            [df.columns.values.tolist()] + df.values.tolist())
+            'B2:Z200',
+            [list(map(lambda x: '_'.join(x), df.columns.values.tolist()))] + df.values.tolist())
 
         # print()
         # print(df[DAYS].to_markdown())
