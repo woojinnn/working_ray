@@ -16,7 +16,8 @@ def get_random_assignment(slots):
                 if (len(slots[day][st]) == 1):
                     assignments[day][st][0] = slots[day][st][0]
                 else:
-                    assignments[day][st] = random.sample(slots[day][st], 2)
+                    assignments[day][st] = sorted(
+                        random.sample(slots[day][st], 2))
     return assignments
 
 
@@ -30,7 +31,8 @@ def mutate_assignment(assignments, slots):
                     if (len(slots[day][st]) == 1):
                         assignments[day][st][0] = slots[day][st][0]
                     else:
-                        assignments[day][st] = random.sample(slots[day][st], 2)
+                        assignments[day][st] = sorted(
+                            random.sample(slots[day][st], 2))
     return mutant
 
 
@@ -44,7 +46,13 @@ def crossover_assignments(assignments1, assignments2):
     return mutant
 
 
+def slot_overlaps(slot1, slot2) -> bool:
+    assert (len(slot1) == len(slot2) == 2)
+    return slot1[0] in slot2 or slot1[1] in slot2
+
+
 def num_fragments(seq):
+    # TODO: is this penalty?
     count = 1
     for i in range(1, len(seq)):
         if seq[i] != seq[i-1]:
@@ -52,28 +60,66 @@ def num_fragments(seq):
     return count
 
 
-def num_short_or_long_fragments(seq):
-    len_fragments = [1]
+def calc_penalty_consecutive_inner(frags: list) -> int:
+    assert (len(frags) == 2)
+    if frags[0] == 1 or frags[1] == 1:
+        # 30분에 패널티
+        return 10
+    elif (frags[0] is not None and frags[0] > 8) or (frags[1] is not None and frags[1] > 8):
+        # 4시간 이상에 패널티
+        return 1
+    else:
+        return 0
+
+
+def calc_penalty_consecutive(seq):
+    len_fragments = [[None, None]]
     for i in range(1, len(seq)):
-        if seq[i] != seq[i-1]:
-            len_fragments.append(1)
-        else:
-            len_fragments[-1] += 1
-    # 1시간 혹은 5시간 이상 슬랏에 패널티
-    return sum([not (2 <= l <= 4) for l in len_fragments])
+        if len_fragments[-1][0] is None and seq[i][0] is not None:
+            len_fragments[-1][0] = 1
+        if len_fragments[-1][1] is None and seq[i][1] is not None:
+            len_fragments[-1][1] = 1
+
+        if len_fragments[-1][0] is not None and seq[i-1][0] in seq[i]:
+            if seq[i-1][0] == seq[i][0]:
+                len_fragments[-1][0] += 1
+            else:
+                len_fragments[-1][1] += 1
+        if len_fragments[-1][0] is not None and seq[i-1][1] in seq[i]:
+            if seq[i-1][1] == seq[i][0]:
+                len_fragments[-1][0] += 1
+            else:
+                len_fragments[-1][1] += 1
+
+        to_append = False
+        append0 = len_fragments[-1][0]
+        append1 = len_fragments[-1][1]
+        if seq[i][0] is None:
+            to_append = True
+            append0 = None
+        if seq[i][1] is None:
+            to_append = True
+            append1 = None
+        if seq[i-1][0] not in seq[i]:
+            to_append = True
+            append0 = 1
+        if seq[i-1][1] not in seq[i]:
+            to_append = True
+            append1 = 1
+
+        if to_append:
+            len_fragments.append([append0, append1])
+
+    return sum(list(map(calc_penalty_consecutive_inner, len_fragments)))
 
 
 def compute_fitness(assignments, ideal_ratio, alpha=0.5, verbose=False):
     fragment_fitness = 0
     ratio_fitness = 0
+    # penalty
     for day in assignments:
         assignees = [assignments[day][st] for st in assignments[day]]
-        fragment_fitness += num_fragments(assignees)/len(assignments[day])
-        # penalty
-        fragment_fitness += num_short_or_long_fragments(
-            assignees)/num_fragments(assignees)
-    fragment_fitness /= 2
-    fragment_fitness /= len(assignments)
+        fragment_fitness += calc_penalty_consecutive(assignees)
 
     actual_ratio = {person: 0 for person in ideal_ratio}
     for day in assignments:

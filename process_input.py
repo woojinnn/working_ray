@@ -1,16 +1,9 @@
 from typing import Dict, List, Tuple
 
-import gspread
+from config import *
 
-SCOPES = ['https://accounts.google.com/o/oauth2/token',
-          'https://www.googleapis.com/auth/spreadsheets',
-          'https://www.googleapis.com/auth/drive',
-          'https://spreadsheets.google.com/feeds',
-          ]
-# SERVICE_ACCOUNT_FILE = '/home/woojin/Desktop/kaori-worker-ca7a53ab02da.json'
-# SERVICE_ACCOUNT_FILE = '/home/woojin/kaori-worker-a85899e5e9cc.json'
-SERVICE_ACCOUNT_FILE = '/home/woojin/kaori-worker-159c40569be1.json'
-KEY_PATH = '/home/woojin/Desktop/client_secret_626783014254-6a3mkqcflmuf9btuqrkg3qntgqtrop9h.apps.googleusercontent.com.json'
+import pandas as pd
+import gspread
 
 
 def get_spreadsheet(url_inf: str) -> gspread.Spreadsheet:
@@ -27,6 +20,31 @@ def parse_time(time_str: str) -> List[tuple]:
     # add validation logic
     return [tuple(map(float, rg.split("-")))
             for rg in time_str.strip().split(",")]
+
+
+def visualize_responses(sh: gspread.Spreadsheet, slots):
+    sheet_title = "응답 정리"
+
+    rows = []
+    for day, v in slots.items():
+        for time, people in v.items():
+            rows.append([day, time, ', '.join(people)])
+    df = pd.DataFrame(data=rows, columns=["day", "start_time", "available"])
+    df = df.pivot(index="start_time", columns="day", values="available")
+    df = df.reindex(columns=DAYS)
+
+    if sheet_title in [ws.title for ws in sh.worksheets()]:
+        result_ws = sh.worksheet(sheet_title)
+        sh.del_worksheet(result_ws)
+    result_ws = sh.add_worksheet(title=sheet_title, rows=200, cols=30)
+    result_ws.update(
+        'A3:A200',
+        [[f"{START_TIME + UNIT*i}~{START_TIME + UNIT*(i+1)}"] for i in range(
+            int((END_TIME - START_TIME)/UNIT))]
+    )
+    result_ws.update(
+        'B2:Z200',
+        [df.columns.values.tolist()] + df.values.tolist())
 
 
 def get_responses(sh: gspread.Spreadsheet) -> Dict[str, Dict[str, list]]:

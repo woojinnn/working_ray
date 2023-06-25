@@ -4,37 +4,11 @@ import random
 import pandas as pd
 import argparse
 from tqdm import tqdm
-from itertools import starmap
 
-from io_process import process_input as inp
-from io_process import process_output as outp
+import process_input as inp
 import ga
 
-# ========================== edit here ========================
-START_TIME = 8
-END_TIME = 21
-# UNIT = 1    # 1 hour
-UNIT = 0.5  # 30 mins
-DAYS = ["월", "화", "수", "목", "금"]
-WORK_TYPE = ["매표소", "수영장"]
-
-# Genetic algorithm hyperparameter
-NUM_POPULATIONS = 50
-NUM_GENERATIONS = 100
-NUM_ELITES = 10
-ALPHA = 0.8  # [0, 1] 0에 가까울 수록 분배 우선, 1에 가까울 수록 연속적 배정 우선
-# ==============================================================
-
-# glob vars
-SLOT_START_TIMES: List[int] = [
-    START_TIME + UNIT*i for i in range(int((END_TIME - START_TIME)/UNIT))
-]
-SLOTS: Dict[str, Dict[int, list]] = {
-    day: {
-        st: []
-        for st in SLOT_START_TIMES
-    } for day in DAYS
-}
+from config import *
 
 
 def fill_slots(SLOTS, available):
@@ -69,13 +43,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # read input
-    RESPONSE_URL = "https://docs.google.com/spreadsheets/d/1qyeYJX2HHHhvsU9X5uCd1VzGI9Tp801-y3rCzlhk3Ww/edit?resourcekey#gid=1866203138"
     sh = inp.get_spreadsheet(RESPONSE_URL)
     available = inp.get_responses(sh)
 
     # preprocessing
     fill_slots(SLOTS, available)
-    ideal_ratio = get_ideal_ratio(available)
+
+    inp.visualize_responses(sh, SLOTS)
 
     # initial population
     populations = [
@@ -84,7 +58,8 @@ if __name__ == "__main__":
     ]
 
     # genetic algorithm
-    print("Scheduling using GA...")
+    print("Scheduling with GA...")
+    ideal_ratio = get_ideal_ratio(available)
     for gen in tqdm(range(NUM_GENERATIONS), colour="blue"):
         elites = ga.get_best_n(populations, NUM_ELITES,
                                ideal_ratio, alpha=ALPHA)
